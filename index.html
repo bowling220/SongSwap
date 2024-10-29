@@ -3,14 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="SongSwap - A music discovery and trading game integrated with Spotify">
+    <meta name="keywords" content="music, spotify, trading, game, songs, collection">
     <title>SongSwap - Discover & Trade Music</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/png" href="assets/images/favicon.png">
     <style>
         :root {
             --primary-color: #1DB954;
             --secondary-color: #191414;
             --text-color: #FFFFFF;
             --accent-color: #535353;
+            --transition-speed: 0.3s;
         }
 
         * {
@@ -20,26 +27,40 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
 
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             background-color: var(--secondary-color);
             color: var(--text-color);
             line-height: 1.6;
+            overflow-x: hidden;
         }
 
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 20px;
+            width: 100%;
         }
 
         /* Header Styles */
         header {
-            background-color: rgba(25, 20, 20, 0.9);
+            background-color: rgba(25, 20, 20, 0.95);
             padding: 20px 0;
             position: fixed;
             width: 100%;
             top: 0;
             z-index: 1000;
+            backdrop-filter: blur(8px);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            transition: all var(--transition-speed) ease;
+        }
+
+        header.scrolled {
+            padding: 15px 0;
+            background-color: rgba(25, 20, 20, 0.98);
         }
 
         nav {
@@ -49,20 +70,67 @@
         }
 
         .logo {
-            font-size: 24px;
-            font-weight: bold;
-            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+        }
+
+        .logo-image {
+            height: 40px;
+            width: auto;
+            object-fit: contain;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .logo-image:hover {
+            transform: scale(1.05);
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
         }
 
         .nav-links a {
             color: var(--text-color);
             text-decoration: none;
             margin-left: 30px;
-            transition: color 0.3s ease;
+            transition: all var(--transition-speed) ease;
+            position: relative;
+            padding: 5px 0;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: var(--primary-color);
+            transition: width var(--transition-speed) ease;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
         }
 
         .nav-links a:hover {
             color: var(--primary-color);
+        }
+
+        /* Mobile Menu */
+        .mobile-menu-btn {
+            display: none;
+            cursor: pointer;
+            padding: 10px;
+        }
+
+        .mobile-menu-btn .bar {
+            width: 25px;
+            height: 3px;
+            background-color: var(--text-color);
+            margin: 5px 0;
+            transition: all var(--transition-speed) ease;
         }
 
         /* Hero Section */
@@ -71,22 +139,68 @@
             display: flex;
             align-items: center;
             background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)),
-                        url('https://source.unsplash.com/random/1920x1080/?music') center/cover;
+                        url('assets/images/background3.jpg') center/cover;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.8) 100%);
         }
 
         .hero-content {
             text-align: center;
             padding: 20px;
+            z-index: 2;
+            opacity: 0;
+            transform: translateY(20px);
+            animation: fadeInUp 1s ease forwards;
         }
 
-        .hero-content h1 {
+        @keyframes fadeInUp {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero-logo {
+            width: 200px;
+            height: auto;
+            margin-bottom: 30px;
+            filter: drop-shadow(0 0 10px rgba(29,185,84,0.3));
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .hero-logo:hover {
+            transform: scale(1.05);
+        }
+
+        .hero-text {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .hero-text h1 {
             font-size: 4rem;
             margin-bottom: 20px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            letter-spacing: -1px;
         }
 
-        .hero-content p {
+        .hero-text p {
             font-size: 1.2rem;
             margin-bottom: 30px;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+            opacity: 0.9;
         }
 
         .cta-button {
@@ -96,18 +210,55 @@
             border-radius: 30px;
             text-decoration: none;
             font-weight: bold;
-            transition: transform 0.3s ease;
+            transition: all var(--transition-speed) ease;
             display: inline-block;
+            box-shadow: 0 4px 15px rgba(29,185,84,0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(
+                120deg,
+                transparent,
+                rgba(255,255,255,0.3),
+                transparent
+            );
+            transition: all 0.6s ease;
         }
 
         .cta-button:hover {
             transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(29,185,84,0.4);
+        }
+
+        .cta-button:hover::before {
+            left: 100%;
         }
 
         /* Features Section */
         .features {
             padding: 100px 0;
-            background-color: var(--accent-color);
+            background: linear-gradient(rgba(83, 83, 83, 0.97), rgba(83, 83, 83, 0.97)),
+                        url('assets/images/background-2.jpg') center/cover;
+            background-attachment: fixed;
+            position: relative;
+        }
+
+        .features::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(to bottom, var(--secondary-color), transparent);
         }
 
         .features-grid {
@@ -120,24 +271,53 @@
         .feature-card {
             text-align: center;
             padding: 30px;
-            background-color: var(--secondary-color);
-            border-radius: 10px;
-            transition: transform 0.3s ease;
+            background-color: rgba(25, 20, 20, 0.95);
+            border-radius: 15px;
+            transition: all var(--transition-speed) ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.03), transparent);
+            transform: translateY(100%);
+            transition: transform var(--transition-speed) ease;
         }
 
         .feature-card:hover {
             transform: translateY(-10px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .feature-card:hover::before {
+            transform: translateY(0);
         }
 
         .feature-card i {
             font-size: 40px;
             color: var(--primary-color);
             margin-bottom: 20px;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .feature-card:hover i {
+            transform: scale(1.1);
         }
 
         /* How It Works Section */
         .how-it-works {
             padding: 100px 0;
+            background: linear-gradient(rgba(25, 20, 20, 0.95), rgba(25, 20, 20, 0.95)),
+                        url('assets/images/background-3.jpg') center/cover;
+            background-attachment: fixed;
+            position: relative;
         }
 
         .steps {
@@ -151,6 +331,14 @@
             text-align: center;
             flex-basis: 250px;
             margin: 20px;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all var(--transition-speed) ease;
+        }
+
+        .step.visible {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .step-number {
@@ -163,6 +351,28 @@
             justify-content: center;
             margin: 0 auto 20px;
             font-weight: bold;
+            position: relative;
+            z-index: 1;
+            box-shadow: 0 0 20px rgba(29,185,84,0.3);
+        }
+
+        .step-number::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: -5px;
+            right: -5px;
+            bottom: -5px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            z-index: -1;
+            opacity: 0.3;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .step:hover .step-number::before {
+            transform: scale(1.5);
+            opacity: 0;
         }
 
         /* Footer */
@@ -170,116 +380,287 @@
             background-color: var(--secondary-color);
             padding: 50px 0;
             text-align: center;
+            position: relative;
+        }
+
+        footer::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(to right, 
+                transparent, 
+                var(--primary-color),
+                transparent
+            );
         }
 
         .social-links {
             margin: 20px 0;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
         }
 
         .social-links a {
             color: var(--text-color);
-            margin: 0 10px;
             font-size: 24px;
-            transition: color 0.3s ease;
+            transition: all var(--transition-speed) ease;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: rgba(255,255,255,0.1);
         }
 
         .social-links a:hover {
             color: var(--primary-color);
+            transform: translateY(-3px);
+            background-color: rgba(255,255,255,0.15);
         }
 
         /* Responsive Design */
         @media (max-width: 768px) {
-            .hero-content h1 {
+            .hero-text h1 {
                 font-size: 2.5rem;
+            }
+            
+            .hero-logo {
+                width: 150px;
             }
 
             .nav-links {
                 display: none;
+                position: fixed;
+                top: 80px;
+                left: 0;
+                right: 0;
+                background-color: rgba(25, 20, 20, 0.95);
+                padding: 20px;
+                flex-direction: column;
+                align-items: center;
+                backdrop-filter: blur(8px);
+            }
+
+            .nav-links.active {
+                display: flex;
+            }
+
+            .nav-links a {
+                margin: 10px 0;
+            }
+
+            .mobile-menu-btn {
+                display: block;
+            }
+
+            .logo-image {
+                height: 30px;
+            }
+
+            .hero, .features, .how-it-works {
+                background-attachment: scroll;
+            }
+
+            .feature-card {
+                margin: 10px;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--secondary-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid transparent;
+            border-top-color: var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Accessibility */
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0,0,0,0);
+            border: 0;
+        }
+
+        /* Print Styles */
+        @media print {
+            .hero, .features, .how-it-works {
+                background: none !important;
+                color: black !important;
+            }
+
+            .cta-button, .social-links {
+                display: none !important;
             }
         }
     </style>
 </head>
 <body>
+    <div class="loading">
+        <div class="loading-spinner"></div>
+    </div>
+
     <header>
         <nav class="container">
-            <div class="logo">SongSwap</div>
+            <div class="logo">
+                <img src="assets/images/logo.png" alt="SongSwap Logo" class="logo-image">
+            </div>
             <div class="nav-links">
                 <a href="#features">Features</a>
                 <a href="#how-it-works">How It Works</a>
                 <a href="#download">Download</a>
                 <a href="#contact">Contact</a>
             </div>
+            <div class="mobile-menu-btn">
+                <div class="bar"></div>
+                <div class="bar"></div>
+                <div class="bar"></div>
+            </div>
         </nav>
     </header>
 
-    <section class="hero">
-        <div class="container hero-content">
-            <h1>Discover & Trade Music</h1>
-            <p>Turn your music discovery into an adventure. Collect, trade, and share songs with music lovers worldwide.</p>
-            <a href="#download" class="cta-button">Get Started</a>
-        </div>
-    </section>
-
-    <section id="features" class="features">
-        <div class="container">
-            <h2 style="text-align: center; margin-bottom: 40px;">Features</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <i class="fas fa-music"></i>
-                    <h3>Song Collection</h3>
-                    <p>Discover and collect unique songs in an interactive map interface.</p>
-                </div>
-                <div class="feature-card">
-                    <i class="fas fa-gem"></i>
-                    <h3>Rarity System</h3>
-                    <p>Find songs with different rarity levels from Common to Epic.</p>
-                </div>
-                <div class="feature-card">
-                    <i class="fas fa-coins"></i>
-                    <h3>Virtual Currency</h3>
-                    <p>Earn coins and gems through gameplay and trading.</p>
-                </div>
-                <div class="feature-card">
-                    <i class="fas fa-exchange-alt"></i>
-                    <h3>Trading System</h3>
-                    <p>Trade songs with other players in the marketplace.</p>
+    <main>
+        <section class="hero">
+            <div class="container hero-content">
+                <img src="assets/images/logo.png" alt="SongSwap Logo" class="hero-logo">
+                <div class="hero-text">
+                    <h1>Discover & Trade Music</h1>
+                    <p>Turn your music discovery into an adventure. Collect, trade, and share songs with music lovers worldwide.</p>
+                    <a href="#download" class="cta-button">Get Started</a>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section id="how-it-works" class="how-it-works">
-        <div class="container">
-            <h2 style="text-align: center; margin-bottom: 40px;">How It Works</h2>
-            <div class="steps">
-                <div class="step">
-                    <div class="step-number">1</div>
-                    <h3>Connect Spotify</h3>
-                    <p>Link your Spotify account to start your collection journey.</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">2</div>
-                    <h3>Explore & Collect</h3>
-                    <p>Find song encounters on the interactive map.</p>
-                </div>
-                <div class="step">
-                    <div class="step-number">3</div>
-                    <h3>Trade & Share</h3>
-                    <p>Exchange songs and build your perfect collection.</p>
+        <section id="features" class="features">
+            <div class="container">
+                <h2 style="text-align: center; margin-bottom: 40px;">Features</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <i class="fas fa-music"></i>
+                        <h3>Song Collection</h3>
+                        <p>Discover and collect unique songs in an interactive map interface.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-gem"></i>
+                        <h3>Rarity System</h3>
+                        <p>Find songs with different rarity levels from Common to Epic.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-coins"></i>
+                        <h3>Virtual Currency</h3>
+                        <p>Earn coins and gems through gameplay and trading.</p>
+                    </div>
+                    <div class="feature-card">
+                        <i class="fas fa-exchange-alt"></i>
+                        <h3>Trading System</h3>
+                        <p>Trade songs with other players in the marketplace.</p>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
+
+        <section id="how-it-works" class="how-it-works">
+            <div class="container">
+                <h2 style="text-align: center; margin-bottom: 40px;">How It Works</h2>
+                <div class="steps">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <h3>Connect Spotify</h3>
+                        <p>Link your Spotify account to start your collection journey.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <h3>Explore & Collect</h3>
+                        <p>Find song encounters on the interactive map.</p>
+                    </div>
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <h3>Trade & Share</h3>
+                        <p>Exchange songs and build your perfect collection.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <footer>
         <div class="container">
             <div class="social-links">
-                <a href="#"><i class="fab fa-twitter"></i></a>
-                <a href="#"><i class="fab fa-discord"></i></a>
-                <a href="#"><i class="fab fa-github"></i></a>
+                <a href="#" aria-label="Twitter"><i class="fab fa-twitter"></i></a>
+                <a href="#" aria-label="Discord"><i class="fab fa-discord"></i></a>
+                <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
             </div>
             <p>&copy; 2024 SongSwap. All rights reserved.</p>
         </div>
     </footer>
+
+    <script>
+        // Remove loading screen when page is loaded
+        window.addEventListener('load', () => {
+            document.querySelector('.loading').style.display = 'none';
+        });
+
+        // Mobile menu toggle
+        const mobileMenuBtn = document.querySelector('.mobile-menu-btn');
+        const navLinks = document.querySelector('.nav-links');
+        
+        mobileMenuBtn.addEventListener('click', () => {
+            navLinks.classList.toggle('active');
+            mobileMenuBtn.classList.toggle('active');
+        });
+
+        // Header scroll effect
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 50) {
+                header.classList.add('scrolled');
+            } else {
+                header.classList.remove('scrolled');
+            }
+        });
+
+        // Intersection Observer for step animations
+        const steps = document.querySelectorAll('.step');
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                }
+            });
+        }, { threshold: 0.5 });
+
+        steps.forEach(step => observer.observe(step));
+    </script>
 </body>
-</html> 
+</html>
