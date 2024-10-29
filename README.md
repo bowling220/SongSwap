@@ -1,50 +1,121 @@
-# Welcome to your Expo app 👋
+# 🎵 SongSwap
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+SongSwap is an interactive music discovery game that combines your Spotify listening experience with gamification elements. Collect songs, trade with others, and discover new music in an engaging way.
 
-## Get started
+## 🌟 Features
 
-1. Install dependencies
+- **Spotify Integration**: Seamlessly connect with your Spotify account
+- **Song Collection**: Discover and collect songs in an interactive map interface
+- **Rarity System**: Songs have different rarity levels (Common, Rare, Epic)
+- **Virtual Currency**: Earn coins and gems through gameplay
+- **Song Auction**: Bid on and trade songs with other players
+- **Real-time Playback**: Control your Spotify playback directly in the app
 
-   ```bash
-   npm install
-   ```
+## 🚀 Getting Started
 
-2. Start the app
+### Prerequisites
 
-   ```bash
-    npx expo start
-   ```
+- Node.js (v14 or higher)
+- Expo CLI
+- Spotify Developer Account
+- Spotify Premium Account (for playback features)
 
-In the output, you'll find options to open the app in a
+### Installation
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+1. Clone the repository:
 ```bash
-npm run reset-project
+git clone https://github.com/yourusername/songswap.git
+cd songswap
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Install dependencies:
+```bash
+npm install
+```
 
-## Learn more
+3. Create a `.env` file in the root directory with your Spotify credentials:
+```env
+SPOTIFY_CLIENT_ID=your_client_id_here
+SPOTIFY_CLIENT_SECRET=your_client_secret_here
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+4. Start the development server:
+```bash
+npx expo start
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## 🛠️ Built With
 
-## Join the community
+- [React Native](https://reactnative.dev/) - Mobile app framework
+- [Expo](https://expo.dev/) - Development platform
+- [Spotify Web API](https://developer.spotify.com/documentation/web-api/) - Music streaming integration
+- [AsyncStorage](https://react-native-async-storage.github.io/async-storage/) - Local data persistence
+- [Expo Router](https://expo.github.io/router/docs/) - Navigation
 
-Join our community of developers creating universal apps.
+## 📱 Supported Platforms
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- iOS
+- Android
+- Web (Beta)
+
+## 🎮 How to Play
+
+1. Log in with your Spotify account
+2. Explore the map to find song encounters
+3. Collect songs by tapping on them
+4. Build your collection and trade with others
+5. Earn currency through various activities
+6. Bid on rare songs in the auction house
+
+## 🔐 Authentication
+
+SongSwap uses Spotify OAuth2 for authentication. The app requires the following Spotify permissions:
+- user-read-email
+- playlist-read-private
+- user-library-read
+- user-read-private
+- user-top-read
+- user-read-recently-played
+- user-modify-playback-state
+- user-read-playback-state
+
+## 🎨 Design
+
+The app features a modern, intuitive interface with:
+- Dark mode support
+- Interactive map interface
+- Smooth animations
+- Responsive design
+- Cross-platform consistency
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
+
+## 👥 Authors
+
+- **Blaine Oler** - *Initial work* - [Github](https://github.com/Bowling220)
+
+## 🙏 Acknowledgments
+
+- Spotify for their excellent Web API
+- The React Native community
+- All contributors and testers
+
+## 📞 Support
+
+For support, email olerblaine@gmail.com or join our Discord server.
+
+---
+
+Made with ❤️ by [Blaine Oler]
