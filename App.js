@@ -1,936 +1,543 @@
 // App.js
-import React, { useState, useEffect } from 'react';
-import {
-  AppState,
-  Button,
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Image,
-  TouchableOpacity,
-  Modal,
-  ScrollView,
-  Dimensions,
-  Platform,
-  ImageBackground,
-  ActivityIndicator,
-} from 'react-native';
+import React, { useState, useCallback, useEffect } from 'react';
+import { View, TouchableOpacity, Text, Alert, StyleSheet, Dimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as WebBrowser from 'expo-web-browser';
-import * as Linking from 'expo-linking';
-import { Ionicons } from '@expo/vector-icons';
 import { Audio } from 'expo-av';
+import HomeScreen from './src/screens/HomeScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import CollectionScreen from './src/screens/CollectionScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import GeneratorShopScreen from './src/screens/GeneratorShopScreen';
+import { ResponseType, useAuthRequest } from 'expo-auth-session';
+import {
+  calculateCost,
+  determineRarity,
+  calculateXP,
+  calculateLevel,
+  calculateGeneratorCoins,
+  getRandomPosition,
+  GENERATOR_TYPES,
+  INITIAL_GAME_STATE,
+  createSaveData,
+  loadSaveData
+} from './src/utils/gameUtils';
 
-const CLIENT_ID = '7ed969c99b8c4d1d846c3d9cfdb441f6';
-const REDIRECT_URI = Platform.select({
-  web: 'exp://localhost:19000/--/callback',
-  ios: 'songswap://callback',
-  android: 'songswap://callback'
-});
+// Add Spotify config directly
+const SPOTIFY_CLIENT_ID = '7ed969c99b8c4d1d846c3d9cfdb441f6';
 
-const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
-const RESPONSE_TYPE = 'token';
-const SCOPES = [
-  'user-read-email',
-  'playlist-read-private',
-  'user-library-read',
-  'user-read-private',
-  'user-top-read',
-  'user-read-recently-played',
-  'user-modify-playback-state',
-  'user-read-playback-state',
-];
-
-const RARITY_COSTS = {
-  Common: 100,
-  Rare: 250,
-  Epic: 500,
-  Legendary: 1000,
-  Mythic: 2000
-};
-
-const rarityColors = {
-  Common: '#a0a0a0',
-  Rare: '#4a90e2',
-  Epic: '#9b59b6',
-  Legendary: '#f1c40f',
-  Mythic: '#e74c3c'
-};
-
-const ACHIEVEMENTS = [
-  {
-    id: 'first_collect',
-    title: 'First Collection',
-    description: 'Collect your first song',
-    icon: 'musical-note',
-    requirement: 1,
-    xpReward: 50,
-    type: 'collection'
-  },
-  {
-    id: 'collector_10',
-    title: 'Novice Collector',
-    description: 'Collect 10 songs',
-    icon: 'albums',
-    requirement: 10,
-    xpReward: 100,
-    type: 'collection'
-  },
-  {
-    id: 'rare_collector',
-    title: 'Rare Hunter',
-    description: 'Collect 5 Rare songs',
-    icon: 'star',
-    requirement: 5,
-    xpReward: 150,
-    type: 'rare'
-  },
-  {
-    id: 'epic_collector',
-    title: 'Epic Enthusiast',
-    description: 'Collect 3 Epic songs',
-    icon: 'trophy',
-    requirement: 3,
-    xpReward: 200,
-    type: 'epic'
-  }
-];
-
-const ProfileScreen = ({ visible, onClose, userName, userImage, level, xp, coins, gems, collection, unlockedAchievements }) => {
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={onClose}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Profile</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView>
-            <View style={styles.profileInfo}>
-              {userImage ? (
-                <Image source={{ uri: userImage }} style={styles.profileAvatar} />
-              ) : (
-                <View style={styles.profileAvatarPlaceholder}>
-                  <Ionicons name="person-circle" size={60} color="white" />
-                </View>
-              )}
-              <Text style={styles.profileName}>{userName}</Text>
-              
-              <View style={styles.profileStats}>
-                <View style={styles.profileStatItem}>
-                  <Ionicons name="star" size={24} color="#FFD700" />
-                  <Text style={styles.profileStatValue}>Level {level}</Text>
-                  <Text style={styles.profileStatLabel}>XP: {xp}/100</Text>
-                </View>
-                
-                <View style={styles.profileCurrency}>
-                  <View style={styles.currencyItem}>
-                    <Ionicons name="logo-bitcoin" size={24} color="#FFA500" />
-                    <Text style={styles.currencyValue}>{coins}</Text>
-                  </View>
-                  <View style={styles.currencyItem}>
-                    <Ionicons name="diamond" size={24} color="#00CED1" />
-                    <Text style={styles.currencyValue}>{gems}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.achievementsSection}>
-              <Text style={styles.sectionTitle}>Achievements</Text>
-              {ACHIEVEMENTS.map(achievement => (
-                <View 
-                  key={achievement.id} 
-                  style={[
-                    styles.achievementItem,
-                    unlockedAchievements.includes(achievement.id) && styles.achievementUnlocked
-                  ]}
-                >
-                  <Ionicons 
-                    name={achievement.icon} 
-                    size={24} 
-                    color={unlockedAchievements.includes(achievement.id) ? "#1DB954" : "#666"} 
-                  />
-                  <View style={styles.achievementInfo}>
-                    <Text style={styles.achievementTitle}>{achievement.title}</Text>
-                    <Text style={styles.achievementDescription}>{achievement.description}</Text>
-                  </View>
-                  <Text style={styles.achievementXP}>+{achievement.xpReward} XP</Text>
-                </View>
-              ))}
-            </View>
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-const CollectionScreen = ({ visible, onClose, collection }) => {
-  const [playingSound, setPlayingSound] = useState(null);
-  const [playingSongId, setPlayingSongId] = useState(null);
-
-  useEffect(() => {
-    return playingSound
-      ? () => {
-          playingSound.unloadAsync();
-        }
-      : undefined;
-  }, [playingSound]);
-
-  const playSong = async (song) => {
-    if (playingSound) {
-      await playingSound.unloadAsync();
-    }
-
-    if (playingSongId === song.id) {
-      setPlayingSongId(null);
-      setPlayingSound(null);
-      return;
-    }
-
-    try {
-      const { sound: newSound } = await Audio.Sound.createAsync(
-        { uri: song.preview_url },
-        { shouldPlay: true }
-      );
-      setPlayingSound(newSound);
-      setPlayingSongId(song.id);
-    } catch (error) {
-      console.error('Error playing song:', error);
-      alert('Unable to play song');
-    }
-  };
-
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={() => {
-        if (playingSound) {
-          playingSound.unloadAsync();
-        }
-        onClose();
-      }}
-    >
-      <View style={styles.modalContainer}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Collection</Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.collectionStats}>
-            <Text style={styles.collectionTotal}>
-              Total Songs: {collection.length}
-            </Text>
-          </View>
-
-          <FlatList
-            data={collection}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <TouchableOpacity 
-                style={styles.collectionItem}
-                onPress={() => playSong(item)}
-              >
-                <Image source={{ uri: item.image }} style={styles.collectionItemImage} />
-                <View style={styles.collectionItemInfo}>
-                  <Text style={styles.collectionItemTitle}>{item.name}</Text>
-                  <Text style={styles.collectionItemArtist}>{item.artist}</Text>
-                  <View style={[styles.rarityBadge, { backgroundColor: rarityColors[item.rarity] }]}>
-                    <Text style={styles.rarityText}>{item.rarity}</Text>
-                  </View>
-                </View>
-                <Ionicons 
-                  name={playingSongId === item.id ? "pause-circle" : "play-circle"} 
-                  size={30} 
-                  color="#1DB954" 
-                />
-              </TouchableOpacity>
-            )}
-            style={styles.collectionList}
-          />
-        </View>
-      </View>
-    </Modal>
-  );
-};
-
-const PreviewModal = ({ visible, onClose, song, onPurchase }) => {
-  const [sound, setSound] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const stopAndClosePreview = async () => {
-    if (sound) {
-      await sound.stopAsync();
-      await sound.unloadAsync();
-      setSound(null);
-    }
-    setIsPlaying(false);
-    onClose();
-  };
-
-  useEffect(() => {
-    return () => {
-      if (sound) {
-        sound.unloadAsync();
-      }
-    };
-  }, [sound]);
-
-  const playPreview = async () => {
-    if (sound) {
-      if (isPlaying) {
-        await sound.pauseAsync();
-        setIsPlaying(false);
-      } else {
-        await sound.playAsync();
-        setIsPlaying(true);
-      }
-    } else if (song?.preview_url) {
-      try {
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          { uri: song.preview_url },
-          { shouldPlay: true }
-        );
-        setSound(newSound);
-        setIsPlaying(true);
-      } catch (error) {
-        console.error('Error playing preview:', error);
-        alert('Unable to play preview');
-      }
-    }
-  };
-
-  return (
-    <Modal
-      animationType="slide"
-      transparent={true}
-      visible={visible}
-      onRequestClose={stopAndClosePreview}
-    >
-      <View style={styles.previewModalContainer}>
-        <View style={styles.previewModalContent}>
-          <View style={styles.previewHeader}>
-            <TouchableOpacity onPress={stopAndClosePreview} style={styles.closeButton}>
-              <Ionicons name="close" size={24} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.previewInfo}>
-            <Image 
-              source={{ uri: song?.image }} 
-              style={styles.previewImage} 
-            />
-            <Text style={styles.previewTitle}>{song?.name}</Text>
-            <Text style={styles.previewArtist}>{song?.artist}</Text>
-            
-            <View style={[styles.rarityBadge, { backgroundColor: rarityColors[song?.rarity] }]}>
-              <Text style={styles.rarityText}>{song?.rarity}</Text>
-            </View>
-
-            <Text style={styles.previewCost}>
-              Cost: {RARITY_COSTS[song?.rarity]} coins
-            </Text>
-
-            <View style={styles.previewControls}>
-              <TouchableOpacity 
-                style={styles.playButton} 
-                onPress={playPreview}
-              >
-                <Ionicons 
-                  name={isPlaying ? "pause" : "play"} 
-                  size={30} 
-                  color="white" 
-                />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity 
-              style={styles.purchaseButton}
-              onPress={() => {
-                stopAndClosePreview();
-                onPurchase();
-              }}
-            >
-              <Text style={styles.purchaseButtonText}>Purchase Song</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </View>
-    </Modal>
-  );
+const discovery = {
+  authorizationEndpoint: 'https://accounts.spotify.com/authorize',
+  tokenEndpoint: 'https://accounts.spotify.com/api/token',
 };
 
 export default function App() {
-  const [authToken, setAuthToken] = useState(null);
-  const [userName, setUserName] = useState('');
-  const [userImage, setUserImage] = useState(null);
-  const [topTracks, setTopTracks] = useState([]);
-  const [recentlyPlayed, setRecentlyPlayed] = useState([]);
+  // State initialization
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [spotifyProfile, setSpotifyProfile] = useState(null);
   const [collection, setCollection] = useState([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isDataLoaded, setIsDataLoaded] = useState(false);
-  const [collectedSongIds, setCollectedSongIds] = useState([]);
-
-  const [currentSong, setCurrentSong] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [showAuction, setShowAuction] = useState(false);
   const [coins, setCoins] = useState(1000);
-  const [gems, setGems] = useState(50);
+  const [gems, setGems] = useState(10);
   const [level, setLevel] = useState(1);
   const [xp, setXp] = useState(0);
-  const [achievements, setAchievements] = useState([]);
-  const [unlockedAchievements, setUnlockedAchievements] = useState([]);
-
+  const [settings, setSettings] = useState({});
+  const [generators, setGenerators] = useState({});
   const [songEncounters, setSongEncounters] = useState([]);
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [accessToken, setAccessToken] = useState(null);
+  const [topTracks, setTopTracks] = useState([]);
 
-  const [previewSong, setPreviewSong] = useState(null);
+  // Modal states - all should be false by default
+  const [showProfile, setShowProfile] = useState(false);
+  const [showCollection, setShowCollection] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showGeneratorShop, setShowGeneratorShop] = useState(false);
+
+  // Add Spotify auth request
+  const [request, response, promptAsync] = useAuthRequest(
+    {
+      responseType: ResponseType.Token,
+      clientId: SPOTIFY_CLIENT_ID,
+      scopes: ['user-read-email', 'user-library-read', 'user-top-read'],
+      usePKCE: false,
+      redirectUri: 'songswap://callback'  // Update this with your Expo development URL
+    },
+    discovery
+  );
+
+  // Add these state variables
+  const [previewSound, setPreviewSound] = useState(null);
+  const [selectedSong, setSelectedSong] = useState(null);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-  const [previewAudio, setPreviewAudio] = useState(null);
 
-  const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        const userData = await AsyncStorage.getItem('userData');
-        if (userData) {
-          const parsed = JSON.parse(userData);
-          setLevel(parsed.level || 1);
-          setXp(parsed.xp || 0);
-          setCoins(parsed.coins || 1000);
-          setGems(parsed.gems || 50);
-          setCollection(parsed.collection || []);
-          setUnlockedAchievements(parsed.unlockedAchievements || []);
-          setCollectedSongIds(parsed.collectedSongIds || []);
-        }
-      } catch (error) {
-        console.error('Error loading user data:', error);
-      }
-    };
-
-    loadUserData();
-  }, []);
-
-  useEffect(() => {
-    const loadToken = async () => {
-      try {
-        setIsLoading(true);
-        const token = await AsyncStorage.getItem('spotify_token');
-        if (token) {
-          setAuthToken(token);
-          await Promise.all([
-            fetchUserProfile(token),
-            fetchTopTracks(token),
-            fetchRecentlyPlayed(token)
-          ]);
-          setIsDataLoaded(true);
-        }
-      } catch (error) {
-        console.error('Error loading token:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    loadToken();
-
-    const subscription = AppState.addEventListener('change', (nextAppState) => {
-      if (nextAppState === 'active') {
-        loadToken();
-      }
-    });
-
-    return () => subscription.remove();
-  }, []);
-
-  useEffect(() => {
-    if (isDataLoaded && topTracks.length > 0) {
-      generateRandomEncounters();
-    }
-  }, [isDataLoaded, topTracks]);
-
-  useEffect(() => {
-    if (Platform.OS === 'web') {
-      const hash = window.location.hash;
-      if (hash) {
-        const token = hash.match(/access_token=([^&]*)/);
-        if (token) {
-          const accessToken = token[1];
-          setAuthToken(accessToken);
-          AsyncStorage.setItem('spotify_token', accessToken);
-          fetchUserProfile(accessToken);
-          fetchTopTracks(accessToken);
-          fetchRecentlyPlayed(accessToken);
-          window.location.hash = '';
-        }
-      }
-    }
-  }, []);
-
-  const addXP = async (amount) => {
-    const newXP = xp + amount;
-    let newLevel = level;
-    let remainingXP = newXP;
-
-    if (newXP >= 100) {
-      newLevel = level + Math.floor(newXP / 100);
-      remainingXP = newXP % 100;
-      const levelUpBonus = 500;
-      setCoins(prevCoins => prevCoins + levelUpBonus);
-      alert(`Level Up! You are now level ${newLevel}! +${levelUpBonus} coins`);
-    }
-
-    setXp(remainingXP);
-    setLevel(newLevel);
-
-    await AsyncStorage.setItem('userData', JSON.stringify({
-      level: newLevel,
-      xp: remainingXP,
-      coins,
-      gems,
-      collection,
-      unlockedAchievements,
-      collectedSongIds
-    }));
-  };
-
-  const handleSongEncounter = (song) => {
-    setPreviewSong(song);
-    setIsPreviewVisible(true);
-  };
-
-  const handlePurchase = async (song) => {
-    const cost = RARITY_COSTS[song.rarity];
-    
-    if (coins < cost) {
-      alert(`Not enough coins! This ${song.rarity} song costs ${cost} coins`);
-      return;
-    }
-
-    const newCoins = coins - cost;
-    setCoins(newCoins);
-
-    const updatedCollection = [...collection, song];
-    setCollection(updatedCollection);
-
-    const updatedCollectedSongs = [...collectedSongIds, song.id];
-    setCollectedSongIds(updatedCollectedSongs);
-
-    setSongEncounters(prevEncounters => 
-      prevEncounters.filter(encounter => encounter.id !== song.id)
-    );
-
-    checkAchievements(updatedCollection);
-
-    await AsyncStorage.setItem('userData', JSON.stringify({
-      level,
-      xp,
-      coins: newCoins,
-      gems,
-      collection: updatedCollection,
-      unlockedAchievements,
-      collectedSongIds: updatedCollectedSongs
-    }));
-
-    setIsPreviewVisible(false);
-    alert(`You collected ${song.name}! (-${cost} coins)`);
-  };
-
-  const checkAchievements = (updatedCollection) => {
-    ACHIEVEMENTS.forEach(achievement => {
-      if (!unlockedAchievements.includes(achievement.id)) {
-        let requirement = 0;
-
-        switch (achievement.type) {
-          case 'collection':
-            requirement = updatedCollection.length;
-            break;
-          case 'rare':
-            requirement = updatedCollection.filter(song => song.rarity === 'Rare').length;
-            break;
-          case 'epic':
-            requirement = updatedCollection.filter(song => song.rarity === 'Epic').length;
-            break;
-        }
-
-        if (requirement >= achievement.requirement) {
-          setUnlockedAchievements(prev => [...prev, achievement.id]);
-          addXP(achievement.xpReward);
-          alert(`Achievement Unlocked: ${achievement.title}! +${achievement.xpReward} XP`);
-        }
-      }
-    });
-  };
-
-  const handleLogout = async () => {
+  // Handle song purchase
+  const handlePurchaseSong = useCallback(async (song) => {
     try {
-      await AsyncStorage.removeItem('spotify_token');
-      setAuthToken(null);
-      setUserName('');
-      setTopTracks([]);
-      setRecentlyPlayed([]);
-      setCollection([]);
-      setSongEncounters([]);
-    } catch (error) {
-      console.error('Error during logout:', error);
-    }
-  };
+      if (!song?.cost || coins < song.cost) {
+        Alert.alert('Not enough coins!', 'Keep collecting coins to purchase this song.');
+        return false;
+      }
 
-  const handleLogin = async () => {
-    setIsLoggingIn(true);
-    try {
-      const authUrl = `${AUTH_ENDPOINT}?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(
-        REDIRECT_URI
-      )}&response_type=${RESPONSE_TYPE}&scope=${encodeURIComponent(
-        SCOPES.join(' ')
-      )}`;
+      const newCoins = coins - song.cost;
+      const newCollection = [...collection, {
+        ...song,
+        purchasedAt: new Date().toISOString()
+      }];
 
-      if (Platform.OS === 'android') {
-        const result = await WebBrowser.openAuthSessionAsync(
-          authUrl,
-          REDIRECT_URI
-        );
-        
-        if (result.type === 'success') {
-          const url = result.url;
-          const token = url.match(/access_token=([^&]*)/);
-          if (token) {
-            const accessToken = token[1];
-            setAuthToken(accessToken);
-            await AsyncStorage.setItem('spotify_token', accessToken);
-            await fetchUserProfile(accessToken);
-            await fetchTopTracks(accessToken);
-            await fetchRecentlyPlayed(accessToken);
-          }
-        }
+      setCoins(newCoins);
+      setCollection(newCollection);
+
+      // Add XP
+      const xpGained = 50;
+      const newXp = xp + xpGained;
+      const xpNeeded = level * 100;
+
+      if (newXp >= xpNeeded) {
+        setLevel(prev => prev + 1);
+        setXp(newXp - xpNeeded);
+        setGems(prev => prev + 5);
+        Alert.alert('Level Up!', `You've reached level ${level + 1}!\nReceived: 5 gems`);
       } else {
-        await Linking.openURL(authUrl);
+        setXp(newXp);
+      }
+
+      // Save data
+      if (spotifyProfile?.id) {
+        const userData = {
+          level,
+          xp: newXp,
+          coins: newCoins,
+          gems,
+          collection: newCollection,
+          generators,
+          settings
+        };
+        await AsyncStorage.setItem(`userData_${spotifyProfile.id}`, JSON.stringify(userData));
+      }
+
+      Alert.alert('Success!', `You've added "${song.name}" to your collection!`);
+      return true;
+    } catch (error) {
+      console.error('Error purchasing song:', error);
+      Alert.alert('Error', 'Failed to purchase song. Please try again.');
+      return false;
+    }
+  }, [coins, collection, level, xp, gems, generators, settings, spotifyProfile]);
+
+  // Load user data
+  const loadUserData = useCallback(async () => {
+    try {
+      if (!spotifyProfile?.id) return;
+      
+      const storedData = await AsyncStorage.getItem(`userData_${spotifyProfile.id}`);
+      if (storedData) {
+        const data = JSON.parse(storedData);
+        setLevel(data.level || 1);
+        setXp(data.xp || 0);
+        setCoins(data.coins || 1000);
+        setGems(data.gems || 10);
+        setCollection(data.collection || []);
+        setGenerators(data.generators || {});
+        setSettings(data.settings || {});
       }
     } catch (error) {
-      console.error('Login error:', error);
-      alert('Failed to login. Please try again.');
-    } finally {
-      setIsLoggingIn(false);
+      console.error('Error loading user data:', error);
     }
-  };
+  }, [spotifyProfile]);
 
-  const getAccessTokenFromUrl = (url) => {
-    const match = url.match(/access_token=([^&]*)/);
-    return match ? match[1] : null;
-  };
-
-  const fetchUserProfile = async (token) => {
+  // Fetch Spotify profile
+  const fetchSpotifyProfile = useCallback(async (token) => {
     try {
+      if (!token) return;
+      
+      console.log('Fetching profile...');
       const response = await fetch('https://api.spotify.com/v1/me', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
       const data = await response.json();
-      setUserName(data.display_name);
-      setUserImage(data.images?.[0]?.url);
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    }
-  };
-
-  const fetchTopTracks = async (token) => {
-    try {
-      const response = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=20', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      const data = await response.json();
       
-      if (data && data.items) {
-        setTopTracks(data.items);
-      } else {
-        console.log('No top tracks data available:', data);
-        setTopTracks([]);
+      // Only proceed if we haven't already logged in
+      if (!isLoggedIn) {
+        console.log('Profile data:', data);
+        setSpotifyProfile(data);
+        
+        // Fetch top tracks
+        const tracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const tracksData = await tracksResponse.json();
+        setTopTracks(tracksData.items);
+        
+        await loadUserData();
+        setIsLoggedIn(true);
+        setAccessToken(token);
+        console.log('Login complete, showing main screen');
       }
     } catch (error) {
-      console.error('Error fetching top tracks:', error);
-      setTopTracks([]);
+      console.error('Error fetching profile:', error);
     }
-  };
+  }, [loadUserData]);
 
-  const fetchRecentlyPlayed = async (token) => {
+  // Add handleLogin function
+  const handleLogin = useCallback(async () => {
     try {
-      const response = await fetch('https://api.spotify.com/v1/me/player/recently-played?limit=20', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+      console.log('Starting login...');
+      const result = await promptAsync({
+        useProxy: false,
+        showInRecents: true,
+        extraParams: {
+          show_dialog: 'true'
+        }
       });
-      const data = await response.json();
       
-      if (data && data.items) {
-        setRecentlyPlayed(data.items);
-      } else {
-        console.log('No recently played tracks available:', data);
-        setRecentlyPlayed([]);
+      console.log('Login result:', result);
+      
+      if (result.type === 'success') {
+        console.log('Login successful, token:', result.params.access_token);
+        const { access_token } = result.params;
+        await fetchSpotifyProfile(access_token);
+        
+        // Fetch top tracks after successful login
+        try {
+          const tracksResponse = await fetch('https://api.spotify.com/v1/me/top/tracks?limit=50', {
+            headers: {
+              Authorization: `Bearer ${access_token}`,
+            },
+          });
+          const tracksData = await tracksResponse.json();
+          setTopTracks(tracksData.items);
+        } catch (error) {
+          console.error('Error fetching top tracks:', error);
+        }
       }
     } catch (error) {
-      console.error('Error fetching recently played tracks:', error);
-      setRecentlyPlayed([]);
+      console.error('Login error:', error);
     }
-  };
+  }, [promptAsync, fetchSpotifyProfile]);
 
-  const generateRandomEncounters = () => {
-    if (!topTracks || topTracks.length === 0) {
-      console.log('No top tracks available for encounters');
-      return;
+  // Add auth response handler
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { access_token } = response.params;
+      fetchSpotifyProfile(access_token);
     }
+  }, [response, fetchSpotifyProfile]);
 
-    const availableTracks = topTracks.filter(track => !collectedSongIds.includes(track.id));
-
-    const encounters = availableTracks.slice(0, 10).map((track) => {
-      if (!track || !track.album || !track.album.images || track.album.images.length === 0) {
-        return null;
-      }
-
-      return {
-        id: track.id,
-        name: track.name,
-        artist: track.artists[0].name,
-        image: track.album.images[0].url,
-        preview_url: track.preview_url,
-        rarity: determineRarity(track.popularity),
-        x: Math.random() * (screenWidth - 60),
-        y: Math.random() * (screenHeight - 200),
-      };
-    }).filter(encounter => encounter !== null);
-
-    if (encounters.length > 0) {
-      setSongEncounters(encounters);
-    }
-  };
-
-  const determineRarity = (popularity) => {
-    if (popularity >= 90) return 'Mythic';
-    if (popularity >= 80) return 'Legendary';
-    if (popularity >= 70) return 'Epic';
-    if (popularity >= 50) return 'Rare';
-    return 'Common';
-  };
-
-  const refreshAvailableSongs = async () => {
+  // Add force logout handler
+  const handleForceLogout = useCallback(async () => {
     try {
-      await fetchTopTracks(authToken);
-      generateRandomEncounters();
+      if (spotifyProfile?.id) {
+        await AsyncStorage.removeItem(`userData_${spotifyProfile.id}`);
+      }
+      setIsLoggedIn(false);
+      setSpotifyProfile(null);
+      setCollection([]);
+      setCoins(1000);
+      setGems(10);
+      setLevel(1);
+      setXp(0);
+      setSettings({});
+      setGenerators({});
+      setShowProfile(false);
+      setShowCollection(false);
+      setShowSettings(false);
+      setShowGeneratorShop(false);
     } catch (error) {
-      console.error('Error refreshing songs:', error);
-      alert('Failed to refresh songs. Please try again.');
+      console.error('Error logging out:', error);
     }
-  };
+  }, [spotifyProfile]);
 
-  if (isLoading) {
-    return (
-      <View style={[styles.container, styles.loadingContainer]}>
-        <ActivityIndicator size="large" color="#1DB954" />
-        <Text style={styles.loadingText}>Loading your music world...</Text>
-      </View>
+  // Add generateRandomEncounters function
+  const generateRandomEncounters = useCallback(() => {
+    if (!topTracks || !Array.isArray(topTracks)) return;
+    
+    const availableTracks = topTracks.filter(track => 
+      !collection.some(collected => collected.id === track.id)
     );
-  }
+
+    const encounters = availableTracks.slice(0, 5).map(track => ({
+      id: track.id,
+      name: track.name,
+      artist: track.artists[0].name,
+      image: track.album.images[0].url,
+      preview_url: track.preview_url,
+      rarity: determineRarity(track.popularity),
+      cost: calculateCost(track.popularity),
+      x: Math.random() * (Dimensions.get('window').width - 80),
+      y: Math.random() * (Dimensions.get('window').height - 300),
+    }));
+
+    setSongEncounters(encounters);
+  }, [topTracks, collection]);
+
+  // Add handleSongPreview function
+  const handleSongPreview = useCallback(async (song) => {
+    try {
+      // Stop any currently playing preview
+      if (previewSound) {
+        await previewSound.unloadAsync();
+      }
+
+      if (song.preview_url) {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: song.preview_url },
+          { shouldPlay: true }
+        );
+        setPreviewSound(sound);
+        setSelectedSong(song);
+        setIsPreviewVisible(true);
+
+        // Add listener for when audio finishes playing
+        sound.setOnPlaybackStatusUpdate(status => {
+          if (status.didJustFinish) {
+            sound.unloadAsync();
+            setPreviewSound(null);
+          }
+        });
+      } else {
+        Alert.alert('Preview Unavailable', 'No preview available for this song.');
+      }
+    } catch (error) {
+      console.error('Error playing preview:', error);
+      Alert.alert('Error', 'Failed to play song preview.');
+    }
+  }, [previewSound]);
+
+  // Add cleanup effect for audio
+  useEffect(() => {
+    return () => {
+      if (previewSound) {
+        previewSound.unloadAsync();
+      }
+    };
+  }, [previewSound]);
+
+  // Add handleSettingChange function
+  const handleSettingChange = useCallback(async (key, value) => {
+    try {
+      const newSettings = {
+        ...settings,
+        [key]: value
+      };
+      setSettings(newSettings);
+
+      // Save to AsyncStorage
+      if (spotifyProfile?.id) {
+        const userData = {
+          level,
+          xp,
+          coins,
+          gems,
+          collection,
+          generators,
+          settings: newSettings
+        };
+        await AsyncStorage.setItem(`userData_${spotifyProfile.id}`, JSON.stringify(userData));
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+    }
+  }, [settings, spotifyProfile, level, xp, coins, gems, collection, generators]);
+
+  // Add handlePurchaseGenerator function
+  const handlePurchaseGenerator = useCallback(async (generatorType) => {
+    try {
+      const generator = GENERATOR_TYPES[generatorType];
+      if (!generator) {
+        Alert.alert('Error', 'Invalid generator type');
+        return false;
+      }
+
+      if (gems < generator.cost) {
+        Alert.alert('Not enough gems!', 'Keep collecting gems to purchase this generator.');
+        return false;
+      }
+
+      // Update gems and generators
+      setGems(prevGems => prevGems - generator.cost);
+      setGenerators(prevGenerators => ({
+        ...prevGenerators,
+        [generator.id]: (prevGenerators[generator.id] || 0) + 1
+      }));
+
+      // Save updated user data
+      if (spotifyProfile?.id) {
+        const userData = {
+          level,
+          xp,
+          coins,
+          gems: gems - generator.cost,
+          collection,
+          generators: {
+            ...generators,
+            [generator.id]: (generators[generator.id] || 0) + 1
+          },
+          settings
+        };
+        await AsyncStorage.setItem(`userData_${spotifyProfile.id}`, JSON.stringify(userData));
+      }
+
+      // Start generating coins if this is the first generator
+      startGeneratingCoins();
+
+      Alert.alert('Success!', `You've purchased a ${generator.name}!`);
+      return true;
+    } catch (error) {
+      console.error('Error purchasing generator:', error);
+      Alert.alert('Error', 'Failed to purchase generator. Please try again.');
+      return false;
+    }
+  }, [gems, generators, spotifyProfile, level, xp, coins, collection, settings]);
+
+  // Add coin generation functionality
+  const startGeneratingCoins = useCallback(() => {
+    const interval = setInterval(() => {
+      let totalCoinsPerSecond = 0;
+      
+      // Calculate coins per second from all generators
+      Object.entries(generators).forEach(([generatorId, count]) => {
+        const generator = Object.values(GENERATOR_TYPES).find(g => g.id === generatorId);
+        if (generator) {
+          totalCoinsPerSecond += generator.coinsPerSecond * count;
+        }
+      });
+
+      if (totalCoinsPerSecond > 0) {
+        setCoins(prevCoins => prevCoins + totalCoinsPerSecond);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [generators]);
+
+  // Add this function to handle preview closing
+  const handleClosePreview = useCallback(async () => {
+    if (previewSound) {
+      await previewSound.unloadAsync();
+    }
+    setPreviewSound(null);
+    setSelectedSong(null);
+    setIsPreviewVisible(false);
+  }, [previewSound]);
+
+  const [gameState, setGameState] = useState({
+    level: 1,
+    xp: 0,
+    coins: 1000,
+    gems: 10,
+    collection: [],
+    // ... other state
+  });
+
+  const handleUpdateCoins = (newCoins) => {
+    setGameState(prev => ({
+      ...prev,
+      coins: newCoins
+    }));
+  };
+
+  const handleUpdateCollection = (newCollection) => {
+    setGameState(prev => ({
+      ...prev,
+      collection: newCollection
+    }));
+  };
+
+  // Create a stats object that combines game state and additional stats
+  const stats = {
+    level: gameState.level,
+    xp: gameState.xp,
+    coins: gameState.coins,
+    gems: gameState.gems,
+    songsCollected: gameState.collection.length,
+    playTime: 0, // You can track this if needed
+  };
 
   return (
     <View style={styles.container}>
-      {authToken ? (
-        <>
-          <ImageBackground
-            source={require('./assets/images/map-background.jpg')}
-            style={styles.mapBackground}
-            resizeMode="cover"
-          >
-            <View style={styles.darkOverlay}>
-              <View style={styles.header}>
-                <View style={styles.userInfo}>
-                  {userImage ? (
-                    <Image source={{ uri: userImage }} style={styles.avatar} />
-                  ) : (
-                    <View style={styles.avatarPlaceholder}>
-                      <Ionicons name="person-circle" size={40} color="white" />
-                    </View>
-                  )}
-                  <View style={styles.userTextInfo}>
-                    <Text style={styles.welcomeText}>Welcome back,</Text>
-                    <Text style={styles.userName}>{userName}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statsContainer}>
-                  <View style={styles.statItem}>
-                    <View style={styles.statIconContainer}>
-                      <Ionicons name="star" size={20} color="#FFD700" />
-                    </View>
-                    <View style={styles.statTextContainer}>
-                      <Text style={styles.statLabel}>LEVEL</Text>
-                      <Text style={styles.statValue}>{level}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.statItem}>
-                    <View style={styles.statIconContainer}>
-                      <Ionicons name="logo-bitcoin" size={20} color="#FFA500" />
-                    </View>
-                    <View style={styles.statTextContainer}>
-                      <Text style={styles.statLabel}>COINS</Text>
-                      <Text style={styles.statValue}>{coins}</Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.statItem}>
-                    <View style={styles.statIconContainer}>
-                      <Ionicons name="diamond" size={20} color="#00CED1" />
-                    </View>
-                    <View style={styles.statTextContainer}>
-                      <Text style={styles.statLabel}>GEMS</Text>
-                      <Text style={styles.statValue}>{gems}</Text>
-                    </View>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {songEncounters.length > 0 ? (
-              songEncounters.map((song) => (
-                <TouchableOpacity
-                  key={song.id}
-                  style={[
-                    styles.songEncounter,
-                    { left: song.x, top: song.y },
-                    { backgroundColor: rarityColors[song.rarity] }
-                  ]}
-                  onPress={() => handleSongEncounter(song)}
-                >
-                  <Image source={{ uri: song.image }} style={styles.songImage} />
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={styles.noSongsContainer}>
-                <Text style={styles.noSongsText}>
-                  {collectedSongIds.length >= topTracks.length 
-                    ? 'All songs collected!' 
-                    : 'No songs available'}
-                </Text>
-                <TouchableOpacity 
-                  style={styles.retryButton}
-                  onPress={refreshAvailableSongs}
-                >
-                  <Text style={styles.retryButtonText}>
-                    {collectedSongIds.length >= topTracks.length 
-                      ? 'Check for New Songs' 
-                      : 'Retry Loading Songs'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-
-            {currentSong && (
-              <View style={styles.playerBar}>
-                <Image
-                  source={{ uri: currentSong.image }}
-                  style={styles.currentSongImage}
-                />
-                <View style={styles.songInfo}>
-                  <Text style={styles.currentSongTitle}>{currentSong.name}</Text>
-                  <Text style={styles.currentSongArtist}>{currentSong.artist}</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.playButton}
-                  onPress={() => setIsPlaying(!isPlaying)}
-                >
-                  <Ionicons
-                    name={isPlaying ? "pause" : "play"}
-                    size={30}
-                    color="white"
-                  />
-                </TouchableOpacity>
-              </View>
-            )}
-
-            <View style={styles.bottomNav}>
-              <TouchableOpacity
-                style={styles.navButton}
-                onPress={() => setShowProfile(true)}
-              >
-                <Ionicons name="person" size={24} color="white" />
-                <Text style={styles.navText}>Profile</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.navButton}
-                onPress={() => setShowAuction(true)}
-              >
-                <Ionicons name="trophy" size={24} color="white" />
-                <Text style={styles.navText}>Collection</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.navButton}
-                onPress={handleLogout}
-              >
-                <Ionicons name="log-out" size={24} color="white" />
-                <Text style={styles.navText}>Logout</Text>
-              </TouchableOpacity>
-            </View>
-          </ImageBackground>
-
-          <ProfileScreen
-            visible={showProfile}
-            onClose={() => setShowProfile(false)}
-            userName={userName}
-            userImage={userImage}
-            level={level}
-            xp={xp}
-            coins={coins}
-            gems={gems}
-            collection={collection}
-            unlockedAchievements={unlockedAchievements}
-          />
-
-          <CollectionScreen
-            visible={showAuction}
-            onClose={() => setShowAuction(false)}
-            collection={collection}
-          />
-
-          <PreviewModal
-            visible={isPreviewVisible}
-            onClose={() => setIsPreviewVisible(false)}
-            song={previewSong}
-            onPurchase={() => handlePurchase(previewSong)}
-          />
-        </>
-      ) : (
+      {!isLoggedIn ? (
         <View style={styles.loginContainer}>
-          <Text style={styles.title}>Welcome to SongSwap</Text>
-          <TouchableOpacity
-            style={styles.loginButton}
+          <TouchableOpacity 
+            style={styles.loginButton} 
             onPress={handleLogin}
-            disabled={isLoggingIn}
           >
-            <Ionicons name="musical-notes" size={24} color="white" />
-            <Text style={styles.loginButtonText}>
-              {isLoggingIn ? 'Connecting...' : 'Connect with Spotify'}
-            </Text>
+            <Text style={styles.buttonText}>Login with Spotify</Text>
           </TouchableOpacity>
         </View>
+      ) : (
+        <>
+          <HomeScreen
+            spotifyProfile={spotifyProfile}
+            level={gameState.level}
+            xp={gameState.xp}
+            coins={gameState.coins}
+            gems={gameState.gems}
+            songEncounters={songEncounters}
+            onPurchaseSong={handlePurchaseSong}
+            onShowCollection={() => setShowCollection(true)}
+            onShowSettings={() => setShowSettings(true)}
+            onShowProfile={() => setShowProfile(true)}
+            onShowShop={() => setShowGeneratorShop(true)}
+            onRefreshSongs={generateRandomEncounters}
+            onSongPress={handleSongPreview}
+            collection={gameState.collection || []}
+            onUpdateCoins={(newCoins) => 
+              setGameState(prev => ({ ...prev, coins: newCoins }))
+            }
+            onUpdateCollection={(newCollection) => 
+              setGameState(prev => ({ ...prev, collection: newCollection }))
+            }
+            stats={stats} // Pass the stats object
+          />
+
+          {showProfile && (
+            <ProfileScreen 
+              isVisible={showProfile}
+              onClose={() => setShowProfile(false)}
+              profile={spotifyProfile}
+              stats={{
+                level,
+                xp,
+                coins,
+                gems,
+                collection: gameState.collection || []
+              }}
+            />
+          )}
+
+          {showCollection && (
+            <CollectionScreen 
+              isVisible={showCollection}
+              onClose={() => setShowCollection(false)}
+              collection={collection}
+              onSongPress={handleSongPreview}
+            />
+          )}
+
+          {showSettings && (
+            <SettingsScreen 
+              visible={showSettings}
+              onClose={() => setShowSettings(false)}
+              settings={settings}
+              onSettingChange={handleSettingChange}
+              onLogout={handleForceLogout}
+              stats={stats} // Pass the stats object here too
+            />
+          )}
+
+          {showGeneratorShop && (
+            <GeneratorShopScreen 
+              isVisible={showGeneratorShop}
+              onClose={() => setShowGeneratorShop(false)}
+              gems={gems}
+              onPurchase={handlePurchaseGenerator}
+              ownedGenerators={generators}
+              generatorTypes={GENERATOR_TYPES}
+            />
+          )}
+        </>
       )}
     </View>
   );
@@ -941,441 +548,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#191414',
   },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: 'white',
-    marginTop: 10,
-    fontSize: 16,
-  },
-  mapBackground: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
-  },
-  darkOverlay: {
-    width: '100%',
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    paddingTop: Platform.OS === 'ios' ? 50 : 40,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingBottom: 15,
-  },
-  userInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 3,
-    borderColor: '#1DB954',
-  },
-  avatarPlaceholder: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  userTextInfo: {
-    marginLeft: 15,
-  },
-  welcomeText: {
-    color: '#888',
-    fontSize: 14,
-  },
-  userName: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 20,
-    padding: 10,
-    marginTop: 15,
-  },
-  statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    paddingHorizontal: 10,
-  },
-  statIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  statTextContainer: {
-    flex: 1,
-  },
-  statLabel: {
-    color: '#888',
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  statValue: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginTop: 2,
-  },
-  songEncounter: {
-    position: 'absolute',
-    width: 65,
-    height: 65,
-    borderRadius: 32.5,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  songImage: {
-    width: 55,
-    height: 55,
-    borderRadius: 27.5,
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.5)',
-  },
-  playerBar: {
-    position: 'absolute',
-    bottom: 80,
-    left: 20,
-    right: 20,
-    height: 75,
-    backgroundColor: 'rgba(29, 185, 84, 0.95)',
-    borderRadius: 38,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 15,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  currentSongImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 15,
-  },
-  songInfo: {
-    flex: 1,
-  },
-  currentSongTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  currentSongArtist: {
-    color: '#a0a0a0',
-    fontSize: 14,
-  },
-  playButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: '#1DB954',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bottomNav: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: 65,
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    paddingBottom: Platform.OS === 'ios' ? 20 : 0,
-  },
-  navButton: {
-    alignItems: 'center',
-    padding: 8,
-    minWidth: 80,
-  },
-  navText: {
-    color: 'white',
-    fontSize: 12,
-    marginTop: 4,
-  },
   loginContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
-  title: {
-    fontSize: 32,
-    color: 'white',
-    marginBottom: 30,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    textShadowColor: 'rgba(29, 185, 84, 0.5)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
   },
   loginButton: {
-    flexDirection: 'row',
     backgroundColor: '#1DB954',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 30,
-    alignItems: 'center',
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 24,
   },
-  loginButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
-    letterSpacing: 0.5,
-  },
-  noSongsContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  noSongsText: {
-    color: 'white',
-    fontSize: 18,
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: '#1DB954',
-    padding: 15,
-    borderRadius: 25,
-  },
-  retryButtonText: {
+  buttonText: {
     color: 'white',
     fontSize: 16,
-    fontWeight: 'bold',
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-  },
-  modalContent: {
-    flex: 1,
-    backgroundColor: '#191414',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 20,
-    paddingTop: Platform.OS === 'ios' ? 60 : 20,
-    backgroundColor: '#1DB954',
-  },
-  achievementsSection: {
-    padding: 20,
-  },
-  achievementsList: {
-    maxHeight: 300,
-  },
-  achievementItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 15,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 10,
-    marginBottom: 10,
-    opacity: 0.6,
-  },
-  achievementUnlocked: {
-    opacity: 1,
-    backgroundColor: 'rgba(29,185,84,0.1)',
-  },
-  achievementInfo: {
-    flex: 1,
-    marginLeft: 15,
-  },
-  achievementTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  achievementDescription: {
-    color: '#888',
-    fontSize: 14,
-  },
-  achievementXP: {
-    color: '#1DB954',
-    fontWeight: 'bold',
-  },
-  collectionStats: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  collectionTotal: {
-    color: 'white',
-    fontSize: 16,
-  },
-  collectionList: {
-    flex: 1,
-  },
-  collectionItem: {
-    flexDirection: 'row',
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  collectionItemImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-  },
-  collectionItemInfo: {
-    marginLeft: 15,
-    flex: 1,
-  },
-  collectionItemTitle: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  collectionItemArtist: {
-    color: '#888',
-    fontSize: 14,
-  },
-  rarityBadge: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-    marginTop: 5,
-  },
-  rarityText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  previewModalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
-  },
-  previewModalContent: {
-    margin: 20,
-    backgroundColor: '#191414',
-    borderRadius: 20,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5
-  },
-  previewHeader: {
-    width: '100%',
-    alignItems: 'flex-end',
-  },
-  previewInfo: {
-    alignItems: 'center',
-    padding: 20,
-  },
-  previewImage: {
-    width: 200,
-    height: 200,
-    borderRadius: 10,
-    marginBottom: 20,
-  },
-  previewTitle: {
-    color: 'white',
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  previewArtist: {
-    color: '#888',
-    fontSize: 18,
-    marginBottom: 20,
-  },
-  previewCost: {
-    color: '#1DB954',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginTop: 20,
-  },
-  previewControls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 30,
-  },
-  playButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#1DB954',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  purchaseButton: {
-    backgroundColor: '#1DB954',
-    paddingHorizontal: 30,
-    paddingVertical: 15,
-    borderRadius: 25,
-    marginTop: 20,
-  },
-  purchaseButtonText: {
-    color: 'white',
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
 });
