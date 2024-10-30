@@ -524,6 +524,101 @@
                 display: none !important;
             }
         }
+
+        /* Add to your existing styles */
+        .community-section {
+            padding: 80px 0;
+            background-color: var(--secondary-color);
+        }
+
+        .stats-counter {
+            display: flex;
+            justify-content: space-around;
+            margin: 40px 0;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+            display: block;
+        }
+
+        .stat-label {
+            color: var(--text-color);
+            font-size: 1.1rem;
+        }
+
+        .featured-collections {
+            margin: 60px 0;
+        }
+
+        .collections-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .collection-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 20px;
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .collection-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .community-feed {
+            margin: 40px 0;
+        }
+
+        .feed-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            animation: fadeIn 0.5s ease;
+        }
+
+        .feed-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 15px;
+        }
+
+        .feed-content {
+            flex: 1;
+        }
+
+        .feed-username {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        .feed-action {
+            color: var(--text-color);
+        }
+
+        .feed-timestamp {
+            color: var(--accent-color);
+            font-size: 0.9rem;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -661,6 +756,104 @@
         }, { threshold: 0.5 });
 
         steps.forEach(step => observer.observe(step));
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Animate stats counter
+            function animateCounter(element, target) {
+                let current = 0;
+                const increment = target / 100;
+                const timer = setInterval(() => {
+                    current += increment;
+                    element.textContent = Math.floor(current).toLocaleString();
+                    if (current >= target) {
+                        element.textContent = target.toLocaleString();
+                        clearInterval(timer);
+                    }
+                }, 20);
+            }
+
+            // Initialize counters
+            animateCounter(document.getElementById('userCount'), 15000);
+            animateCounter(document.getElementById('songCount'), 250000);
+            animateCounter(document.getElementById('tradeCount'), 45000);
+
+            // Sample featured collections
+            const featuredCollections = [
+                {
+                    username: 'MusicMaster',
+                    rarityScore: 95,
+                    topSongs: ['Bohemian Rhapsody', 'Stairway to Heaven', 'Hotel California']
+                },
+                // Add more collections...
+            ];
+
+            // Render featured collections
+            const collectionsGrid = document.getElementById('featuredCollections');
+            featuredCollections.forEach(collection => {
+                const card = document.createElement('div');
+                card.className = 'collection-card';
+                card.innerHTML = `
+                    <h4>${collection.username}'s Collection</h4>
+                    <p>Rarity Score: ${collection.rarityScore}</p>
+                    <p>Top Songs:</p>
+                    <ul>
+                        ${collection.topSongs.map(song => `<li>${song}</li>`).join('')}
+                    </ul>
+                `;
+                collectionsGrid.appendChild(card);
+            });
+
+            // Sample activity feed
+            const activities = [
+                {
+                    username: 'JazzLover',
+                    action: 'found a Legendary song',
+                    timestamp: '2 minutes ago'
+                },
+                // Add more activities...
+            ];
+
+            // Render activity feed
+            const feedContainer = document.getElementById('activityFeed');
+            activities.forEach(activity => {
+                const feedItem = document.createElement('div');
+                feedItem.className = 'feed-item';
+                feedItem.innerHTML = `
+                    <img src="assets/images/default-avatar.png" class="feed-avatar">
+                    <div class="feed-content">
+                        <span class="feed-username">${activity.username}</span>
+                        <span class="feed-action">${activity.action}</span>
+                        <div class="feed-timestamp">${activity.timestamp}</div>
+                    </div>
+                `;
+                feedContainer.appendChild(feedItem);
+            });
+
+            // Add live feed updates
+            setInterval(() => {
+                const newActivity = {
+                    username: 'User' + Math.floor(Math.random() * 1000),
+                    action: 'collected a new song',
+                    timestamp: 'just now'
+                };
+                
+                const feedItem = document.createElement('div');
+                feedItem.className = 'feed-item';
+                feedItem.innerHTML = `
+                    <img src="assets/images/default-avatar.png" class="feed-avatar">
+                    <div class="feed-content">
+                        <span class="feed-username">${newActivity.username}</span>
+                        <span class="feed-action">${newActivity.action}</span>
+                        <div class="feed-timestamp">${newActivity.timestamp}</div>
+                    </div>
+                `;
+                
+                feedContainer.insertBefore(feedItem, feedContainer.firstChild);
+                if (feedContainer.children.length > 10) {
+                    feedContainer.removeChild(feedContainer.lastChild);
+                }
+            }, 5000);
+        });
     </script>
 </body>
 </html>
