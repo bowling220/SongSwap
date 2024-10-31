@@ -79,7 +79,7 @@ const ProfileScreen = ({
 
           <Text style={styles.headerTitle}>Profile</Text>
           
-          <View style={styles.headerRight} /> {/* Empty view for balanced spacing */}
+          <View style={styles.headerRight} />
         </View>
 
         <ScrollView style={styles.scrollView}>
