@@ -52,7 +52,8 @@
     "extra": {
       "router": {
         "origin": false
-      }
+      },
+      "spotifyClientId": "7ed969c99b8c4d1d846c3d9cfdb441f6"
     }
   }
 }

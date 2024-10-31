@@ -1,10 +1,74 @@
-import React, { useState } from 'react';
-import { View, TouchableOpacity, Image, Text, StyleSheet, SafeAreaView, Alert } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, TouchableOpacity, Image, Text, StyleSheet, SafeAreaView, Alert, Animated, Dimensions } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import SongPreviewModal from '../components/SongPreviewModal';
 import CollectionScreen from './CollectionScreen';
 import ProfileScreen from './ProfileScreen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Define ParticleBackground component
+const ParticleBackground = () => {
+  const particles = Array(20).fill(0).map(() => ({
+    id: Math.random(),
+    x: new Animated.Value(Math.random() * Dimensions.get('window').width),
+    y: new Animated.Value(Math.random() * Dimensions.get('window').height),
+    scale: new Animated.Value(Math.random()),
+  }));
+
+  useEffect(() => {
+    particles.forEach(particle => {
+      Animated.loop(
+        Animated.parallel([
+          Animated.sequence([
+            Animated.timing(particle.y, {
+              toValue: -50,
+              duration: 10000 + Math.random() * 10000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(particle.y, {
+              toValue: Dimensions.get('window').height,
+              duration: 0,
+              useNativeDriver: true,
+            }),
+          ]),
+          Animated.sequence([
+            Animated.timing(particle.scale, {
+              toValue: Math.random(),
+              duration: 3000,
+              useNativeDriver: true,
+            }),
+            Animated.timing(particle.scale, {
+              toValue: Math.random(),
+              duration: 3000,
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      ).start();
+    });
+  }, []);
+
+  return (
+    <View style={StyleSheet.absoluteFill}>
+      {particles.map(particle => (
+        <Animated.View
+          key={particle.id}
+          style={[
+            styles.particle,
+            {
+              transform: [
+                { translateX: particle.x },
+                { translateY: particle.y },
+                { scale: particle.scale },
+              ],
+            },
+          ]}
+        />
+      ))}
+    </View>
+  );
+};
 
 const HomeScreen = ({
   spotifyProfile,
@@ -43,66 +107,47 @@ const HomeScreen = ({
     onSongPress?.(song);
   };
 
-  const handlePurchaseSong = (song) => {
-    // Check if song is already in collection
-    const isOwned = collection.some(item => item.id === song.id);
-    if (isOwned) {
-      Alert.alert(
-        "Already Owned",
-        "You already have this song in your collection!",
-        [{ text: "OK" }]
-      );
-      return;
+  // Add function to save state changes
+  const saveGameState = async (updates) => {
+    try {
+      const storageKey = `userData_${spotifyProfile?.id}`;
+      const existingData = await AsyncStorage.getItem(storageKey);
+      const currentData = existingData ? JSON.parse(existingData) : {};
+      
+      const updatedData = {
+        ...currentData,
+        ...updates,
+        lastUpdated: new Date().toISOString()
+      };
+
+      await AsyncStorage.setItem(storageKey, JSON.stringify(updatedData));
+    } catch (error) {
+      console.error('Error saving game state:', error);
     }
+  };
 
-    // Check if user has enough coins
-    if (coins < song.cost) {
-      Alert.alert(
-        "Insufficient Coins",
-        "You don't have enough coins to purchase this song.",
-        [{ text: "OK" }]
-      );
-      return;
+  // Handle song purchase with persistence
+  const handlePurchaseSong = async (song) => {
+    if (coins >= song.cost) {
+      const newCoins = coins - song.cost;
+      const newCollection = [...collection, {
+        ...song,
+        purchasedAt: new Date().toISOString()
+      }];
+
+      // Update local state through parent
+      onUpdateCoins(newCoins);
+      onUpdateCollection(newCollection);
+
+      // Save to AsyncStorage
+      await saveGameState({
+        coins: newCoins,
+        collection: newCollection
+      });
+
+      return true;
     }
-
-    // Confirm purchase
-    Alert.alert(
-      "Confirm Purchase",
-      `Do you want to purchase "${song.name}" for ${song.cost} coins?`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Purchase",
-          onPress: () => {
-            // Update coins
-            onUpdateCoins(coins - song.cost);
-
-            // Add to collection with timestamp
-            const newSong = {
-              ...song,
-              purchasedAt: new Date().toISOString(),
-              isOwned: true
-            };
-            
-            const newCollection = [...collection, newSong];
-            onUpdateCollection(newCollection);
-
-            // Update the selected song to show as owned
-            setSelectedSong({ ...song, isOwned: true });
-
-            // Show success message
-            Alert.alert(
-              "Success!",
-              "Song added to your collection!",
-              [{ 
-                text: "OK",
-                onPress: () => setIsPreviewVisible(false)
-              }]
-            );
-          }
-        }
-      ]
-    );
+    return false;
   };
 
   const handleClosePreview = () => {
@@ -118,6 +163,8 @@ const HomeScreen = ({
 
   return (
     <SafeAreaView style={styles.container}>
+      <ParticleBackground />
+      
       <Header 
         spotifyProfile={spotifyProfile}
         level={level}
@@ -125,17 +172,6 @@ const HomeScreen = ({
         coins={coins}
         gems={gems}
       />
-
-      {/* Refresh Button */}
-      <TouchableOpacity 
-        style={styles.refreshButton}
-        onPress={onRefreshSongs}
-      >
-        <View style={styles.refreshContent}>
-          <Ionicons name="refresh" size={24} color="white" />
-          <Text style={styles.refreshText}>New Songs</Text>
-        </View>
-      </TouchableOpacity>
 
       {/* Game Area */}
       <View style={styles.gameArea}>
@@ -153,39 +189,7 @@ const HomeScreen = ({
         ))}
       </View>
 
-      {/* Bottom Navigation Bar */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={() => setIsCollectionVisible(true)}
-        >
-          <View style={styles.iconContainer}>
-            <MaterialCommunityIcons name="music-box-multiple" size={24} color="white" />
-          </View>
-          <Text style={styles.navText}>Collection</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={onShowProfile}
-        >
-          <View style={styles.iconContainer}>
-            <Ionicons name="person" size={24} color="white" />
-          </View>
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.navButton}
-          onPress={onShowSettings}
-        >
-          <View style={styles.iconContainer}>
-            <Ionicons name="settings-outline" size={24} color="white" />
-          </View>
-          <Text style={styles.navText}>Settings</Text>
-        </TouchableOpacity>
-      </View>
-
+      {/* Modals */}
       <ProfileScreen
         isVisible={isProfileVisible}
         onClose={() => setIsProfileVisible(false)}
@@ -200,9 +204,9 @@ const HomeScreen = ({
         onClose={() => setIsCollectionVisible(false)}
         collection={collection}
         onSongPress={handleSongPress}
+        spotifyProfile={spotifyProfile}
       />
 
-      {/* Song Preview Modal */}
       <SongPreviewModal
         isVisible={isPreviewVisible}
         song={selectedSong}
@@ -211,6 +215,16 @@ const HomeScreen = ({
         coins={coins}
         isOwned={selectedSong ? collection.some(item => item.id === selectedSong.id) : false}
       />
+
+      <TouchableOpacity
+        style={styles.debugButton}
+        onPress={async () => {
+          const data = await AsyncStorage.getItem(`@gameData_${spotifyProfile.id}`);
+          console.log('Saved Data:', JSON.parse(data));
+        }}
+      >
+        <Text style={styles.debugButtonText}>Check Saved Data</Text>
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -223,31 +237,6 @@ const styles = StyleSheet.create({
   gameArea: {
     flex: 1,
     position: 'relative',
-  },
-  refreshButton: {
-    position: 'absolute',
-    top: 100,
-    right: 20,
-    backgroundColor: '#1DB954',
-    borderRadius: 25,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    zIndex: 2,
-  },
-  refreshContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  refreshText: {
-    color: 'white',
-    marginLeft: 8,
-    fontWeight: '600',
-    fontSize: 16,
   },
   songBubble: {
     position: 'absolute',
@@ -266,40 +255,48 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: 30,
   },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#282828',
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-  },
-  navButton: {
-    alignItems: 'center',
-    minWidth: 80,
-  },
-  iconContainer: {
-    width: 50,
-    height: 50,
+  particle: {
+    position: 'absolute',
+    width: 4,
+    height: 4,
     backgroundColor: '#1DB954',
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 6,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    borderWidth: 2,
-    borderColor: '#23e066',
+    borderRadius: 2,
+    opacity: 0.3,
   },
-  navText: {
+  songInfo: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 4,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  songTitle: {
     color: 'white',
-    marginTop: 4,
+    fontSize: 10,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    bottom: 0,
+    height: 3,
+    backgroundColor: '#1DB954',
+    borderRadius: 1.5,
+  },
+  debugButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#333',
+    padding: 10,
+    borderRadius: 5,
+  },
+  debugButtonText: {
+    color: 'white',
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: 'bold',
   },
 });
 

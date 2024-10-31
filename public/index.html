@@ -934,6 +934,38 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        .community-stats {
+            padding: 60px 0;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .stats-grid {
+            display: flex;
+            justify-content: space-evenly;
+            align-items: center;
+            text-align: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        .stat-label {
+            font-size: 1.1rem;
+            color: var(--text-color);
+        }
     </style>
 </head>
 <body>
@@ -976,18 +1008,26 @@
             <div class="container">
                 <h2 style="text-align: center; margin-bottom: 40px;">Community Stats</h2>
                 
-                <div class="stats-counter">
-                    <div class="stat-item">
-                        <span class="stat-number" id="userCount">0</span>
-                        <span class="stat-label">Active Collectors</span>
+                <!-- Add Stats Here -->
+                <div style="display: flex; justify-content: space-around; margin-bottom: 60px;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 2.5rem; font-weight: bold; color: #1DB954;" data-stat="active">0</div>
+                        <div style="color: white; margin-top: 10px; font-size: 1.1rem;">Active Users</div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-number" id="songCount">0</span>
-                        <span class="stat-label">Songs Collected</span>
+                    
+                    <div style="text-align: center;">
+                        <div style="font-size: 2.5rem; font-weight: bold; color: #1DB954;" data-stat="songs">0</div>
+                        <div style="color: white; margin-top: 10px; font-size: 1.1rem;">Songs Collected</div>
                     </div>
-                    <div class="stat-item">
-                        <span class="stat-number" id="tradeCount">0</span>
-                        <span class="stat-label">Trades Made</span>
+                    
+                    <div style="text-align: center;">
+                        <div style="font-size: 2.5rem; font-weight: bold; color: #1DB954;" data-stat="trades">0</div>
+                        <div style="color: white; margin-top: 10px; font-size: 1.1rem;">Trades Made</div>
+                    </div>
+                    
+                    <div style="text-align: center;">
+                        <div style="font-size: 2.5rem; font-weight: bold; color: #1DB954;" data-stat="rare">0</div>
+                        <div style="color: white; margin-top: 10px; font-size: 1.1rem;">Rare Finds</div>
                     </div>
                 </div>
 
@@ -1021,16 +1061,6 @@
                         <i class="fas fa-exchange-alt"></i>
                         <h3>Trading Platform</h3>
                         <p>Trade songs with other collectors worldwide.</p>
-                    </div>
-                    <div class="feature-card">
-                        <i class="fas fa-trophy"></i>
-                        <h3>Achievements</h3>
-                        <p>Complete challenges and earn exclusive rewards.</p>
-                    </div>
-                    <div class="feature-card">
-                        <i class="fas fa-users"></i>
-                        <h3>Community Events</h3>
-                        <p>Participate in special events and competitions.</p>
                     </div>
                 </div>
             </div>
@@ -1109,6 +1139,72 @@
         steps.forEach(step => observer.observe(step));
 
         document.addEventListener('DOMContentLoaded', () => {
+            // Initialize stats
+            let activeUsers = 150;
+            let totalSongs = 0;
+            let totalTrades = 0;
+            let totalRare = 0;
+
+            const feedContainer = document.getElementById('activityFeed');
+
+            // Single interval to handle all updates
+            setInterval(() => {
+                // Update active users
+                const userChange = Math.floor(Math.random() * 9) - 3;
+                activeUsers = Math.max(100, activeUsers + userChange);
+                document.querySelector('[data-stat="active"]').textContent = activeUsers;
+
+                // Generate activity
+                const actions = [
+                    'collected a new song',
+                    'collected a new song',
+                    'collected a new song',
+                    'made a trade',
+                    'made a trade',
+                    'found a Legendary song'
+                ];
+                
+                const randomAction = actions[Math.floor(Math.random() * actions.length)];
+                const newActivity = {
+                    username: 'User' + Math.floor(Math.random() * 1000),
+                    action: randomAction,
+                    timestamp: 'just now'
+                };
+
+                // Update stats based on action
+                switch(randomAction) {
+                    case 'collected a new song':
+                        totalSongs++;
+                        document.querySelector('[data-stat="songs"]').textContent = totalSongs;
+                        break;
+                    case 'made a trade':
+                        totalTrades++;
+                        document.querySelector('[data-stat="trades"]').textContent = totalTrades;
+                        break;
+                    case 'found a Legendary song':
+                        totalRare++;
+                        document.querySelector('[data-stat="rare"]').textContent = totalRare;
+                        break;
+                }
+
+                // Update feed
+                const feedItem = document.createElement('div');
+                feedItem.className = 'feed-item';
+                feedItem.innerHTML = `
+                    <div class="feed-avatar"></div>
+                    <div class="feed-content">
+                        <span class="feed-username">${newActivity.username}</span>
+                        <span class="feed-action"> ${newActivity.action}</span>
+                        <div class="feed-timestamp">${newActivity.timestamp}</div>
+                    </div>
+                `;
+
+                feedContainer.insertBefore(feedItem, feedContainer.firstChild);
+                if (feedContainer.children.length > 3) {
+                    feedContainer.removeChild(feedContainer.lastChild);
+                }
+            }, 3000);
+
             // Animate stats counter
             function animateCounter(element, target) {
                 let current = 0;
@@ -1129,7 +1225,6 @@
             animateCounter(document.getElementById('tradeCount'), 45000);
 
             // Add live feed updates
-            const feedContainer = document.getElementById('activityFeed');
             setInterval(() => {
                 const actions = ['collected a new song', 'made a trade', 'found a Legendary song', 'completed a collection'];
                 const newActivity = {
@@ -1307,6 +1402,25 @@
 
         // Call the function when the DOM is loaded
         document.addEventListener('DOMContentLoaded', initializeCollectors);
+
+        // Add at the start of your JavaScript
+        let activeUsers = 2; // Starting number of active users
+
+        // Function to fluctuate active users
+        function fluctuateActiveUsers() {
+            // Random change between -3 and +5 users
+            const change = Math.floor(Math.random() * 9) - 3;
+            activeUsers = Math.max(100, activeUsers + change); // Keep minimum at 100
+            
+            // Update the display
+            document.querySelector('[data-stat="active"]').textContent = activeUsers;
+        }
+
+        // Update active users every 5 seconds
+        setInterval(fluctuateActiveUsers, 5000);
+
+        // Initial call
+        fluctuateActiveUsers();
     </script>
 </body>
 </html>

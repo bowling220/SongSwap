@@ -1,178 +1,219 @@
 import React from 'react';
-import { Modal, View, Text, Image, TouchableOpacity, StyleSheet, FlatList } from 'react-native';
+import { 
+  Modal, 
+  View, 
+  Text, 
+  TouchableOpacity, 
+  Animated,
+  StyleSheet,
+  Dimensions,
+  Platform,
+  Image
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { formatNumber } from '../utils/numberUtils';
 
-const CollectionScreen = ({ isVisible, onClose, collection = [], onSongPress }) => {
-  const hasItems = collection?.length > 0;
+const { height } = Dimensions.get('window');
+
+const CollectionScreen = ({ 
+  isVisible, 
+  onClose, 
+  collection = [], 
+  onSongPress 
+}) => {
+  const scrollY = new Animated.Value(0);
+
+  const renderSongItem = ({ item, index }) => {
+    const inputRange = [-1, 0, (height * 0.1) * index, (height * 0.1) * (index + 2)];
+    const scale = scrollY.interpolate({
+      inputRange,
+      outputRange: [1, 1, 1, 0.95],
+    });
+    const opacity = scrollY.interpolate({
+      inputRange,
+      outputRange: [1, 1, 1, 0.7],
+    });
+
+    return (
+      <Animated.View style={[
+        styles.songItemContainer,
+        {
+          transform: [{ scale }],
+          opacity,
+        }
+      ]}>
+        <TouchableOpacity 
+          style={styles.songItem}
+          onPress={() => onSongPress(item)}
+          activeOpacity={0.7}
+        >
+          <Image 
+            source={{ uri: item.image }} 
+            style={styles.songImage}
+          />
+          <View style={styles.songInfo}>
+            <Text style={styles.songName} numberOfLines={1}>
+              {item.name}
+            </Text>
+            <Text style={styles.artistName} numberOfLines={1}>
+              {item.artist}
+            </Text>
+            <View style={styles.costContainer}>
+              <Ionicons name="diamond" size={16} color="#00ff00" />
+              <Text style={styles.costText}>{item.cost}</Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Animated.View>
+    );
+  };
 
   return (
     <Modal
-      animationType="slide"
+      animationType="fade"
       transparent={true}
       visible={isVisible}
       onRequestClose={onClose}
     >
-      <View style={styles.container}>
-        <View style={styles.content}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Ionicons name="chevron-back" size={28} color="white" />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Collection</Text>
-          </View>
+      <View style={styles.modalContainer}>
+        <View style={styles.header}>
+          <Text style={styles.title}>Collection</Text>
+          <TouchableOpacity 
+            onPress={onClose} 
+            style={styles.closeButton}
+          >
+            <Ionicons name="close" size={28} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
-          {/* Collection Stats */}
-          <View style={styles.statsContainer}>
-            <Text style={styles.statsText}>
-              {collection?.length || 0} Songs Collected
+        <Text style={styles.subtitle}>
+          {collection.length} {collection.length === 1 ? 'Song' : 'Songs'} Collected
+        </Text>
+
+        {collection.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="musical-notes" size={64} color="#00ff00" />
+            <Text style={styles.emptyText}>Your Collection is Empty</Text>
+            <Text style={styles.emptySubText}>
+              Explore and collect songs to build your library!
             </Text>
           </View>
-
-          {/* Collection List */}
-          {hasItems ? (
-            <FlatList
-              data={collection}
-              renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={styles.songItem}
-                  onPress={() => onSongPress(item)}
-                >
-                  <Image 
-                    source={{ uri: item.image }} 
-                    style={styles.songImage}
-                  />
-                  <View style={styles.songInfo}>
-                    <Text style={styles.songName} numberOfLines={1}>{item.name}</Text>
-                    <Text style={styles.artistName} numberOfLines={1}>{item.artist}</Text>
-                  </View>
-                  <View style={[styles.rarityBadge, { backgroundColor: getRarityColor(item.rarity) }]}>
-                    <Text style={styles.rarityText}>{item.rarity}</Text>
-                  </View>
-                </TouchableOpacity>
-              )}
-              keyExtractor={item => item?.id || Math.random().toString()}
-              contentContainerStyle={styles.listContainer}
-            />
-          ) : (
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No songs collected yet</Text>
-              <Text style={styles.emptySubtext}>
-                Start collecting songs to build your collection!
-              </Text>
-            </View>
-          )}
-        </View>
+        ) : (
+          <Animated.FlatList
+            data={collection}
+            renderItem={renderSongItem}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            onScroll={Animated.event(
+              [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+              { useNativeDriver: true }
+            )}
+          />
+        )}
       </View>
     </Modal>
   );
 };
 
-const getRarityColor = (rarity) => {
-  switch (rarity) {
-    case 'Legendary':
-      return '#FFD700';
-    case 'Epic':
-      return '#9400D3';
-    case 'Rare':
-      return '#0096FF';
-    default:
-      return '#808080';
-  }
-};
-
 const styles = StyleSheet.create({
-  container: {
+  modalContainer: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-  },
-  content: {
-    flex: 1,
-    backgroundColor: '#282828',
+    backgroundColor: '#000',
   },
   header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    backgroundColor: '#000',
+  },
+  title: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#00ff00',
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#fff',
+    opacity: 0.8,
+    marginHorizontal: 20,
+    marginBottom: 20,
   },
   closeButton: {
-    padding: 8,
-  },
-  headerTitle: {
-    color: 'white',
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginLeft: 8,
-  },
-  statsContainer: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  statsText: {
-    color: '#B3B3B3',
-    fontSize: 14,
-  },
-  listContainer: {
-    padding: 16,
-  },
-  songItem: {
-    flexDirection: 'row',
+    width: 40,
+    height: 40,
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    padding: 12,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  songImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 8,
-  },
-  songInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  songName: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  artistName: {
-    color: '#B3B3B3',
-    fontSize: 14,
-  },
-  rarityBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  rarityText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: 'bold',
+    justifyContent: 'center',
+    borderRadius: 20,
+    backgroundColor: '#1a1a1a',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: 40,
   },
   emptyText: {
-    color: 'white',
-    fontSize: 18,
+    fontSize: 24,
     fontWeight: 'bold',
-    marginTop: 16,
-  },
-  emptySubtext: {
-    color: '#B3B3B3',
-    fontSize: 14,
+    color: '#00ff00',
+    marginTop: 20,
+    marginBottom: 10,
     textAlign: 'center',
-    marginTop: 8,
+  },
+  emptySubText: {
+    fontSize: 16,
+    color: '#fff',
+    opacity: 0.7,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  listContent: {
+    padding: 15,
+  },
+  songItemContainer: {
+    marginBottom: 12,
+  },
+  songItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    height: 80,
+  },
+  songImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 15,
+  },
+  songInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  songName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#00ff00',
+    marginBottom: 4,
+  },
+  artistName: {
+    fontSize: 14,
+    color: '#fff',
+    opacity: 0.7,
+    marginBottom: 4,
+  },
+  costContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  costText: {
+    fontSize: 14,
+    color: '#00ff00',
+    fontWeight: 'bold',
+    marginLeft: 5,
   },
 });
 
